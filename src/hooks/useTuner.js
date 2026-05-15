@@ -90,6 +90,7 @@ function useTuner() {
 
             const analyser =
                 audioContext.createAnalyser();
+            setAnalyser(analyser);
 
             source.connect(analyser);
 
@@ -179,6 +180,7 @@ function useTuner() {
         isListening,
         startListening,
         stopListening,
+        analyser,
     };
 }
 

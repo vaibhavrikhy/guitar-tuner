@@ -19,11 +19,9 @@ function TunerCard({
       </div>
 
       <div
-        style={{
-          marginTop: "10px",
-          fontSize: "18px",
-        }}
+        className="cents"
       >
+        
         {cents} cents
       </div>
 

@@ -28,10 +28,10 @@ export function getTuningStatus(centsDifference) {
     }
 
     if (centsDifference < 0) {
-        return "Too Low / Flat ⬇️";
+        return "Too Low";
     }
 
-    return "Too High / Sharp ⬆️";
+    return "Too High";
 }
 
 export function smoothFrequency(newFrequency, frequencyHistory) {
