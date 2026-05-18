@@ -37,13 +37,13 @@ function App() {
         needlePosition={needlePosition}
       />
 
-      <div className="visualizer-section">
-        <div className="visualizer-title">Waveform</div>
+      <div className="visualizer-section \n">
+        <div className="visualizer-title \n">Waveform</div>
         <Waveform analyser={analyser} />
       </div>
 
-      <div className="visualizer-section">
-        <div className="visualizer-title">Spectrum Analyzer</div>
+      <div className="visualizer-section \n">
+        <div className="visualizer-title \n">Spectrum Analyzer</div>
         <Spectrum analyser={analyser} />
       </div>
     </div>

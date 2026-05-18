@@ -86,7 +86,7 @@ export function autoCorrelate(buffer, sampleRate) {
         }
     }
 
-    if (bestCorrelation > 0.9) {
+    if (bestCorrelation > 0.01 && bestOffset !== -1) {
         return sampleRate / bestOffset;
     }
 

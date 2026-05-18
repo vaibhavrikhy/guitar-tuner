@@ -41,8 +41,16 @@ function useTuner() {
     const audioContextRef =
         useRef(null);
 
+    const stableNoteRef =
+        useRef({
+            note: null,
+            count: 0,
+        });
+
     const [analyser, setAnalyser] =
     useState(null);
+
+
 
     function stopListening() {
         if (animationFrameRef.current) {
@@ -138,9 +146,52 @@ function useTuner() {
                             centsDifference
                         );
 
-                    setNote(
-                        closestString.note
-                    );
+                    if (detectedFrequency !== -1) {
+                        const smoothedFrequency =
+                            smoothFrequency(
+                                detectedFrequency,
+                                frequencyHistory
+                            );
+
+                        setFrequency(smoothedFrequency);
+
+                        const closestString =
+                            findClosestString(
+                                smoothedFrequency,
+                                guitarStrings
+                            );
+
+                        const centsDifference =
+                            getCentsDifference(
+                                smoothedFrequency,
+                                closestString.frequency
+                            );
+
+                        const tuningStatus =
+                            getTuningStatus(
+                                centsDifference
+                            );
+
+                        setNote(
+                            closestString.note
+                        );
+
+                        setCents(
+                            centsDifference
+                        );
+
+                        setStatus(
+                            tuningStatus
+                        );
+                    } else {
+                        setFrequency(0);
+
+                        setNote("--");
+
+                        setCents(0);
+
+                        setStatus("No Signal");
+                    }
 
                     setCents(
                         centsDifference
@@ -149,6 +200,14 @@ function useTuner() {
                     setStatus(
                         tuningStatus
                     );
+                } else {
+                    setFrequency(0);
+
+                    setNote("--");
+
+                    setCents(0);
+
+                    setStatus("No Signal");
                 }
 
                 animationFrameRef.current =
