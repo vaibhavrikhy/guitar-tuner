@@ -11,7 +11,7 @@ function App() {
     message,
     frequency,
     note,
-    status,
+    status, 
     cents,
     isListening,
     startListening,

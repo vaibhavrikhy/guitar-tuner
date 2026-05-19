@@ -3,74 +3,56 @@ import { useRef, useState } from "react";
 import guitarStrings from "../data/guitarStrings";
 
 import {
-    autoCorrelate,
-    findClosestString,
+    detectGuitarPitchFromKnownStrings,
     getCentsDifference,
     getTuningStatus,
     smoothFrequency,
 } from "../utils/pitchDetection";
 
 function useTuner() {
-    const [message, setMessage] =
-    useState("Not Listening");
+    const [message, setMessage] = useState("Not Listening");
+    const [frequency, setFrequency] = useState(0);
+    const [note, setNote] = useState("--");
+    const [status, setStatus] = useState("--");
+    const [cents, setCents] = useState(0);
+    const [isListening, setIsListening] = useState(false);
+    const [analyser, setAnalyser] = useState(null);
 
-    const [frequency, setFrequency] =
-    useState(0);
+    const frequencyHistory = useRef([]);
+    const animationFrameRef = useRef(null);
+    const streamRef = useRef(null);
+    const audioContextRef = useRef(null);
 
-    const [note, setNote] =
-    useState("--");
-
-    const [status, setStatus] =
-    useState("--");
-
-    const [cents, setCents] =
-    useState(0);
-
-    const [isListening, setIsListening] =
-    useState(false);
-
-    const frequencyHistory =
-        useRef([]);
-
-    const animationFrameRef =
-        useRef(null);
-
-    const streamRef =
-        useRef(null);
-
-    const audioContextRef =
-        useRef(null);
-
-    const stableNoteRef =
-        useRef({
-            note: null,
-            count: 0,
-        });
-
-    const [analyser, setAnalyser] =
-    useState(null);
-
-
+    const stableNoteRef = useRef({
+        note: null,
+        count: 0,
+    });
 
     function stopListening() {
         if (animationFrameRef.current) {
-            cancelAnimationFrame(
-                animationFrameRef.current
-            );
+            cancelAnimationFrame(animationFrameRef.current);
         }
 
         if (streamRef.current) {
-            streamRef.current
-                .getTracks()
-                .forEach((track) => track.stop());
+            streamRef.current.getTracks().forEach((track) => track.stop());
         }
 
         if (audioContextRef.current) {
             audioContextRef.current.close();
         }
 
-        setMessage("Not Listening");
+        frequencyHistory.current = [];
+        stableNoteRef.current = {
+            note: null,
+            count: 0,
+        };
 
+        setFrequency(0);
+        setNote("--");
+        setCents(0);
+        setStatus("--");
+        setAnalyser(null);
+        setMessage("Not Listening");
         setIsListening(false);
     }
 
@@ -78,155 +60,91 @@ function useTuner() {
         if (isListening) return;
 
         try {
-            const stream =
-                await navigator.mediaDevices.getUserMedia({
-                    audio: true,
-                });
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: true,
+            });
 
             streamRef.current = stream;
 
-            const audioContext =
-                new AudioContext();
+            const audioContext = new AudioContext();
+            audioContextRef.current = audioContext;
 
-            audioContextRef.current =
-                audioContext;
+            const source = audioContext.createMediaStreamSource(stream);
+            const audioAnalyser = audioContext.createAnalyser();
 
-            const source =
-                audioContext.createMediaStreamSource(
-                    stream
-                );
+            setAnalyser(audioAnalyser);
 
-            const analyser =
-                audioContext.createAnalyser();
-            setAnalyser(analyser);
+            source.connect(audioAnalyser);
 
-            source.connect(analyser);
+            audioAnalyser.fftSize = 2048;
 
-            analyser.fftSize = 2048;
-
-            const dataArray =
-                new Float32Array(
-                    analyser.fftSize
-                );
+            const dataArray = new Float32Array(audioAnalyser.fftSize);
 
             function detectFrequency() {
-                analyser.getFloatTimeDomainData(
-                    dataArray
+                audioAnalyser.getFloatTimeDomainData(dataArray);
+
+                const detectedPitch = detectGuitarPitchFromKnownStrings(
+                    dataArray,
+                    audioContext.sampleRate,
+                    guitarStrings
                 );
 
-                const detectedFrequency =
-                    autoCorrelate(
-                        dataArray,
-                        audioContext.sampleRate
+                if (detectedPitch) {
+                    const smoothedFrequency = smoothFrequency(
+                        detectedPitch.detectedFrequency,
+                        frequencyHistory
                     );
-
-                if (detectedFrequency !== -1) {
-                    const smoothedFrequency =
-                        smoothFrequency(
-                            detectedFrequency,
-                            frequencyHistory
-                        );
 
                     setFrequency(smoothedFrequency);
 
-                    const closestString =
-                        findClosestString(
-                            smoothedFrequency,
-                            guitarStrings
-                        );
+                    const closestString = {
+                        note: detectedPitch.note,
+                        frequency: detectedPitch.targetFrequency,
+                    };
 
-                    const centsDifference =
-                        getCentsDifference(
-                            smoothedFrequency,
-                            closestString.frequency
-                        );
+                    const centsDifference = getCentsDifference(
+                        smoothedFrequency,
+                        closestString.frequency
+                    );
 
-                    const tuningStatus =
-                        getTuningStatus(
-                            centsDifference
-                        );
+                    const tuningStatus = getTuningStatus(centsDifference);
 
-                    if (detectedFrequency !== -1) {
-                        const smoothedFrequency =
-                            smoothFrequency(
-                                detectedFrequency,
-                                frequencyHistory
-                            );
-
-                        setFrequency(smoothedFrequency);
-
-                        const closestString =
-                            findClosestString(
-                                smoothedFrequency,
-                                guitarStrings
-                            );
-
-                        const centsDifference =
-                            getCentsDifference(
-                                smoothedFrequency,
-                                closestString.frequency
-                            );
-
-                        const tuningStatus =
-                            getTuningStatus(
-                                centsDifference
-                            );
-
-                        setNote(
-                            closestString.note
-                        );
-
-                        setCents(
-                            centsDifference
-                        );
-
-                        setStatus(
-                            tuningStatus
-                        );
+                    if (stableNoteRef.current.note === closestString.note) {
+                        stableNoteRef.current.count += 1;
                     } else {
-                        setFrequency(0);
-
-                        setNote("--");
-
-                        setCents(0);
-
-                        setStatus("No Signal");
+                        stableNoteRef.current.note = closestString.note;
+                        stableNoteRef.current.count = 1;
                     }
 
-                    setCents(
-                        centsDifference
-                    );
+                    if (stableNoteRef.current.count >= 3) {
+                        setNote(closestString.note);
+                    }
 
-                    setStatus(
-                        tuningStatus
-                    );
+                    setCents(centsDifference);
+                    setStatus(tuningStatus);
                 } else {
+                    frequencyHistory.current = [];
+                    stableNoteRef.current = {
+                        note: null,
+                        count: 0,
+                    };
+
                     setFrequency(0);
-
                     setNote("--");
-
                     setCents(0);
-
                     setStatus("No Signal");
                 }
 
-                animationFrameRef.current =
-                    requestAnimationFrame(
-                        detectFrequency
-                    );
+                animationFrameRef.current = requestAnimationFrame(detectFrequency);
             }
 
             detectFrequency();
 
             setIsListening(true);
-
             setMessage("Listening...");
         } catch (error) {
             console.log(error);
-
-            setMessage(
-                "Microphone Access Denied"
-            );
+            setMessage("Microphone Access Denied");
         }
     }
 

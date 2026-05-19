@@ -24,7 +24,7 @@ export function getCentsDifference(detectedFrequency, targetFrequency) {
 
 export function getTuningStatus(centsDifference) {
     if (Math.abs(centsDifference) <= 5) {
-        return "In Tune ✅";
+        return "In Tune";
     }
 
     if (centsDifference < 0) {
@@ -49,7 +49,11 @@ export function smoothFrequency(newFrequency, frequencyHistory) {
     return Math.round(sum / frequencyHistory.current.length);
 }
 
-export function autoCorrelate(buffer, sampleRate) {
+export function detectGuitarPitchFromKnownStrings(
+    buffer,
+    sampleRate,
+    guitarStrings
+) {
     let rms = 0;
 
     for (let i = 0; i < buffer.length; i++) {
@@ -59,36 +63,59 @@ export function autoCorrelate(buffer, sampleRate) {
     rms = Math.sqrt(rms / buffer.length);
 
     if (rms < 0.01) {
-        return -1;
+        return null;
     }
 
-    let bestOffset = -1;
-    let bestCorrelation = 0;
-
-    const minFrequency = 70;
-    const maxFrequency = 400;
-
-    const minOffset = Math.floor(sampleRate / maxFrequency);
-    const maxOffset = Math.floor(sampleRate / minFrequency);
-
-    for (let offset = minOffset; offset <= maxOffset; offset++) {
+    function getCorrelation(offset) {
         let correlation = 0;
 
         for (let i = 0; i < buffer.length - offset; i++) {
             correlation += Math.abs(buffer[i] - buffer[i + offset]);
         }
 
-        correlation = 1 - correlation / (buffer.length - offset);
+        return 1 - correlation / (buffer.length - offset);
+    }
 
-        if (correlation > bestCorrelation) {
-            bestCorrelation = correlation;
-            bestOffset = offset;
+    let bestResult = null;
+
+    for (const string of guitarStrings) {
+        const targetOffset = sampleRate / string.frequency;
+        const minOffset = Math.floor(targetOffset * 0.88);
+        const maxOffset = Math.ceil(targetOffset * 1.12);
+
+        let bestOffset = targetOffset;
+        let bestScore = 0;
+
+        for (let offset = minOffset; offset <= maxOffset; offset++) {
+            const score = getCorrelation(offset);
+
+            if (score > bestScore) {
+                bestScore = score;
+                bestOffset = offset;
+            }
+        }
+
+        const detectedFrequency = sampleRate / bestOffset;
+
+        const result = {
+            note: string.note,
+            targetFrequency: string.frequency,
+            detectedFrequency,
+            score: bestScore,
+        };
+
+        if (!bestResult ||
+            result.score > bestResult.score ||
+            (result.score > bestResult.score * 0.97 &&
+                result.targetFrequency > bestResult.targetFrequency)
+        ) {
+            bestResult = result;
         }
     }
 
-    if (bestCorrelation > 0.01 && bestOffset !== -1) {
-        return sampleRate / bestOffset;
+    if (!bestResult || bestResult.score < 0.88) {
+        return null;
     }
 
-    return -1;
+    return bestResult;
 }
