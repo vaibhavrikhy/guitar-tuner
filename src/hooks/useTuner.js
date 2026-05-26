@@ -17,6 +17,7 @@ function useTuner() {
     const [cents, setCents] = useState(0);
     const [isListening, setIsListening] = useState(false);
     const [analyser, setAnalyser] = useState(null);
+    const [confidence, setConfidence] = useState(0);
 
     const frequencyHistory = useRef([]);
     const animationFrameRef = useRef(null);
@@ -130,9 +131,13 @@ function useTuner() {
                     };
 
                     setFrequency(0);
+                    setConfidence(0);
                     setNote("--");
                     setCents(0);
                     setStatus("No Signal");
+                    setConfidence(
+                        Math.round(detectedPitch.confidence)
+                    );
                 }
 
                 animationFrameRef.current = requestAnimationFrame(detectFrequency);
@@ -158,6 +163,7 @@ function useTuner() {
         startListening,
         stopListening,
         analyser,
+        confidence,
     };
 }
 

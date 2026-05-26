@@ -5,6 +5,7 @@ function TunerCard({
   cents,
   status,
   needlePosition,
+  confidence,
 }) {
   return (
     <div className="card">
@@ -49,6 +50,24 @@ function TunerCard({
       <div className="status">
         {status}
       </div>
+      <div className="confidence-section">
+  <div className="confidence-label">
+    Signal Confidence
+  </div>
+
+  <div className="confidence-bar">
+    <div
+      className="confidence-fill"
+      style={{
+        width: `${confidence}%`,
+      }}
+    ></div>
+  </div>
+
+  <div className="confidence-text">
+    {confidence}%
+  </div>
+</div>
     </div>
   );
 }
