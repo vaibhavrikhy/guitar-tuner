@@ -190,3 +190,15 @@ button:hover {
     font-size: 14px;
     color: #5f3c28;
 }
+
+.string-selector {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: left;
+}
+
+.string-selector button {
+    padding: 8px 14px;
+    font-size: 14px;
+}

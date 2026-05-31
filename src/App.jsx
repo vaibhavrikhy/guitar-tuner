@@ -9,6 +9,7 @@ import useTuner from "./hooks/useTuner";
 function App() {
   const {
     message,
+    confidence,
     frequency,
     note,
     status, 
@@ -17,6 +18,8 @@ function App() {
     startListening,
     stopListening,
     analyser,
+    selectedString,
+    setSelectedString,
   } = useTuner();
 
   const needlePosition = Math.min(Math.max(cents + 50, 0), 100);
@@ -28,6 +31,29 @@ function App() {
       <button onClick={isListening ? stopListening : startListening}>
         {isListening ? "Stop Listening" : "Start Listening"}
       </button>
+    
+      <div className="string-selector">
+  <button
+    onClick={() =>
+      setSelectedString("AUTO")
+    }
+  >
+    AUTO
+  </button>
+
+  {["E2", "A2", "D3", "G3", "B3", "E4"].map(
+    (string) => (
+      <button
+        key={string}
+        onClick={() =>
+          setSelectedString(string)
+        }
+      >
+        {string}
+      </button>
+    )
+  )}
+</div>
 
       <TunerCard
         message={message}
@@ -35,6 +61,7 @@ function App() {
         frequency={frequency}
         status={status}
         needlePosition={needlePosition}
+        confidence={confidence}
       />
 
       <div className="visualizer-section \n">

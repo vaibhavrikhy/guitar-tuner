@@ -18,6 +18,7 @@ function useTuner() {
     const [isListening, setIsListening] = useState(false);
     const [analyser, setAnalyser] = useState(null);
     const [confidence, setConfidence] = useState(0);
+    const [selectString, setSelectedString] = useState("AUTO");
 
     const frequencyHistory = useRef([]);
     const animationFrameRef = useRef(null);
@@ -98,10 +99,18 @@ function useTuner() {
 
                     setFrequency(smoothedFrequency);
 
-                    const closestString = {
-                        note: detectedPitch.note,
-                        frequency: detectedPitch.targetFrequency,
-                    };
+                    let closestString;
+
+                    if (selectedString === "AUTO") {
+                        closestString = {
+                            note: detectedPitch.note,
+                            frequency: detectedPitch.targetFrequency,
+                        };
+                    } else {
+                        closestString = guitarStrings.find(
+                            (string) => string.note === selectedString
+                        );
+                    }
 
                     const centsDifference = getCentsDifference(
                         smoothedFrequency,
@@ -164,6 +173,11 @@ function useTuner() {
         stopListening,
         analyser,
         confidence,
+        selectString,
+        setSelectedString
+
+
+
     };
 }
 
