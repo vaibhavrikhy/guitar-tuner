@@ -117,5 +117,70 @@ export function detectGuitarPitchFromKnownStrings(
         return null;
     }
 
-    return bestResult;
+    return {
+        ...bestResult,
+        confidence: Math.min(
+            Math.max(bestResult.score * 100, 0),
+            100
+        ),
+    };
+}
+export function autoCorrelateForTarget(
+    buffer,
+    sampleRate,
+    targetFrequency
+) {
+    let rms = 0;
+
+    for (let i = 0; i < buffer.length; i++) {
+        rms += buffer[i] * buffer[i];
+    }
+
+    rms = Math.sqrt(rms / buffer.length);
+
+    if (rms < 0.01) {
+        return -1;
+    }
+
+    const targetOffset =
+        sampleRate / targetFrequency;
+
+    const minOffset = Math.floor(
+        targetOffset * 0.85
+    );
+
+    const maxOffset = Math.ceil(
+        targetOffset * 1.15
+    );
+
+    let bestOffset = -1;
+    let bestCorrelation = 0;
+
+    for (
+        let offset = minOffset; offset <= maxOffset; offset++
+    ) {
+        let correlation = 0;
+
+        for (
+            let i = 0; i < buffer.length - offset; i++
+        ) {
+            correlation += Math.abs(
+                buffer[i] - buffer[i + offset]
+            );
+        }
+
+        correlation =
+            1 - correlation / (buffer.length - offset);
+
+        if (correlation > bestCorrelation) {
+            bestCorrelation = correlation;
+            bestOffset = offset;
+        }
+    }
+
+    if (bestCorrelation > 0.9) {
+        return sampleRate / bestOffset;
+    }
+
+    return -1;
 }

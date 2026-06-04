@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import guitarStrings from "../data/guitarStrings";
 
 import {
+    autoCorrelateForTarget,
     detectGuitarPitchFromKnownStrings,
     getCentsDifference,
     getTuningStatus,
@@ -15,10 +16,10 @@ function useTuner() {
     const [note, setNote] = useState("--");
     const [status, setStatus] = useState("--");
     const [cents, setCents] = useState(0);
+    const [confidence, setConfidence] = useState(0);
     const [isListening, setIsListening] = useState(false);
     const [analyser, setAnalyser] = useState(null);
-    const [confidence, setConfidence] = useState(0);
-    const [selectString, setSelectedString] = useState("AUTO");
+    const [selectedString, setSelectedString] = useState("AUTO");
 
     const frequencyHistory = useRef([]);
     const animationFrameRef = useRef(null);
@@ -29,6 +30,20 @@ function useTuner() {
         note: null,
         count: 0,
     });
+
+    function resetTunerState() {
+        frequencyHistory.current = [];
+        stableNoteRef.current = {
+            note: null,
+            count: 0,
+        };
+
+        setFrequency(0);
+        setNote("--");
+        setCents(0);
+        setConfidence(0);
+        setStatus("No Signal");
+    }
 
     function stopListening() {
         if (animationFrameRef.current) {
@@ -52,6 +67,7 @@ function useTuner() {
         setFrequency(0);
         setNote("--");
         setCents(0);
+        setConfidence(0);
         setStatus("--");
         setAnalyser(null);
         setMessage("Not Listening");
@@ -85,11 +101,34 @@ function useTuner() {
             function detectFrequency() {
                 audioAnalyser.getFloatTimeDomainData(dataArray);
 
-                const detectedPitch = detectGuitarPitchFromKnownStrings(
-                    dataArray,
-                    audioContext.sampleRate,
-                    guitarStrings
-                );
+                let detectedPitch = null;
+
+                if (selectedString === "AUTO") {
+                    detectedPitch = detectGuitarPitchFromKnownStrings(
+                        dataArray,
+                        audioContext.sampleRate,
+                        guitarStrings
+                    );
+                } else {
+                    const targetString = guitarStrings.find(
+                        (string) => string.note === selectedString
+                    );
+
+                    const detectedFrequency = autoCorrelateForTarget(
+                        dataArray,
+                        audioContext.sampleRate,
+                        targetString.frequency
+                    );
+
+                    if (detectedFrequency !== -1) {
+                        detectedPitch = {
+                            note: targetString.note,
+                            targetFrequency: targetString.frequency,
+                            detectedFrequency,
+                            confidence: 100,
+                        };
+                    }
+                }
 
                 if (detectedPitch) {
                     const smoothedFrequency = smoothFrequency(
@@ -99,18 +138,10 @@ function useTuner() {
 
                     setFrequency(smoothedFrequency);
 
-                    let closestString;
-
-                    if (selectedString === "AUTO") {
-                        closestString = {
-                            note: detectedPitch.note,
-                            frequency: detectedPitch.targetFrequency,
-                        };
-                    } else {
-                        closestString = guitarStrings.find(
-                            (string) => string.note === selectedString
-                        );
-                    }
+                    const closestString = {
+                        note: detectedPitch.note,
+                        frequency: detectedPitch.targetFrequency,
+                    };
 
                     const centsDifference = getCentsDifference(
                         smoothedFrequency,
@@ -132,21 +163,9 @@ function useTuner() {
 
                     setCents(centsDifference);
                     setStatus(tuningStatus);
+                    setConfidence(Math.round(detectedPitch.confidence));
                 } else {
-                    frequencyHistory.current = [];
-                    stableNoteRef.current = {
-                        note: null,
-                        count: 0,
-                    };
-
-                    setFrequency(0);
-                    setConfidence(0);
-                    setNote("--");
-                    setCents(0);
-                    setStatus("No Signal");
-                    setConfidence(
-                        Math.round(detectedPitch.confidence)
-                    );
+                    resetTunerState();
                 }
 
                 animationFrameRef.current = requestAnimationFrame(detectFrequency);
@@ -168,16 +187,13 @@ function useTuner() {
         note,
         status,
         cents,
+        confidence,
         isListening,
         startListening,
         stopListening,
         analyser,
-        confidence,
-        selectString,
-        setSelectedString
-
-
-
+        selectedString,
+        setSelectedString,
     };
 }
 
