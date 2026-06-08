@@ -55,6 +55,33 @@ function App() {
   )}
 </div>
 
+<div className="current-selection">
+  Currently Tuning:{" "}
+  <span>
+    {selectedString === "AUTO"
+      ? "Auto Detect"
+      : selectedString}
+  </span>
+</div>
+
+<div className="target-frequency">
+  Target:
+  {
+    selectedString === "AUTO"
+      ? " Auto Detect"
+      : ` ${
+          {
+            E2: "82.41 Hz",
+            A2: "110.00 Hz",
+            D3: "146.83 Hz",
+            G3: "196.00 Hz",
+            B3: "246.94 Hz",
+            E4: "329.63 Hz",
+          }[selectedString]
+        }`
+  }
+</div>
+
       <TunerCard
         message={message}
         note={note}

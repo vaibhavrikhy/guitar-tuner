@@ -195,10 +195,63 @@ button:hover {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
-    justify-content: left;
+    justify-content: center;
 }
 
 .string-selector button {
     padding: 8px 14px;
     font-size: 14px;
+}
+
+.tuning-controls {
+    margin: 24px 0;
+}
+
+.control-group {
+    margin-bottom: 20px;
+}
+
+.control-title {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: #8a7565;
+}
+
+.string-selector {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+}
+
+.active-button {
+    background: #7c4f35;
+    color: white;
+    border: 2px solid #7c4f35;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(124, 79, 53, 0.25);
+}
+
+.string-selector button,
+.control-group button {
+    transition: all 0.2s ease;
+}
+
+.current-selection {
+    margin-top: -10px;
+    margin-bottom: 10px;
+    font-size: 15px;
+    color: #8a7565;
+}
+
+.current-selection span {
+    font-weight: 700;
+    color: #5f3c28;
+}
+
+.target-frequency {
+    margin-bottom: 20px;
+    font-size: 13px;
+    color: #9b8878;
 }
