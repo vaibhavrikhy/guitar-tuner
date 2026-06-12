@@ -4,14 +4,14 @@ A real-time guitar tuner built with React and the Web Audio API. The application
 
 ## Features
 
-🎵 Real-time pitch detection
-🎸 Automatic guitar string detection
-🎯 Manual string selection mode
-📈 Waveform visualization
-📊 Frequency spectrum analyzer (FFT)
-🔍 Signal confidence meter
-⚡ Low-latency microphone processing
-🎛️ Fine tuning feedback using cents deviation
+- 🎵 Real-time pitch detection
+- 🎸 Automatic guitar string detection
+- 🎯 Manual string selection mode
+- 📈 Waveform visualization
+- 📊 Frequency spectrum analyzer (FFT)
+- 🔍 Signal confidence meter
+- ⚡ Low-latency microphone processing
+- 🎛️ Fine tuning feedback using cents deviation
 
 ## Tech Stack
 
