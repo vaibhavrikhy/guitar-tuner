@@ -20,6 +20,9 @@ function App() {
     analyser,
     selectedString,
     setSelectedString,
+    isRecording,
+    startRecording,
+    stopRecording,
   } = useTuner();
 
   const needlePosition = Math.min(Math.max(cents + 50, 0), 100);
@@ -31,6 +34,20 @@ function App() {
       <button onClick={isListening ? stopListening : startListening}>
         {isListening ? "Stop Listening" : "Start Listening"}
       </button>
+    
+      {isListening && (
+  <button
+    onClick={
+      isRecording
+        ? stopRecording
+        : startRecording
+    }
+  >
+    {isRecording
+      ? "Stop Recording"
+      : "Record Sample"}
+  </button>
+)}
     
       <div className="string-selector">
   <button

@@ -20,6 +20,9 @@ function useTuner() {
     const [isListening, setIsListening] = useState(false);
     const [analyser, setAnalyser] = useState(null);
     const [selectedString, setSelectedString] = useState("AUTO");
+    const [isRecording, setIsRecording] = useState(false);
+    const mediaRecorderRef = useRef(null);
+    const audioChunksRef = useRef([]);
 
     const frequencyHistory = useRef([]);
     const animationFrameRef = useRef(null);
@@ -181,6 +184,58 @@ function useTuner() {
         }
     }
 
+    function startRecording() {
+        if (!streamRef.current) return;
+
+        audioChunksRef.current = [];
+
+        const recorder = new MediaRecorder(
+            streamRef.current
+        );
+
+        mediaRecorderRef.current = recorder;
+
+        recorder.ondataavailable = (event) => {
+            audioChunksRef.current.push(event.data);
+        };
+
+        recorder.start();
+
+        setIsRecording(true);
+    }
+
+    function stopRecording() {
+        if (!mediaRecorderRef.current) return;
+
+        mediaRecorderRef.current.onstop = () => {
+            const blob = new Blob(
+                audioChunksRef.current, {
+                    type: "audio/webm",
+                }
+            );
+
+            const url =
+                URL.createObjectURL(blob);
+
+            const link =
+                document.createElement("a");
+
+            const fileName =
+                `${selectedString.toLowerCase()}_${Date.now()}.webm`;
+
+            link.href = url;
+            link.download = fileName;
+
+            link.click();
+
+            URL.revokeObjectURL(url);
+        };
+
+        mediaRecorderRef.current.stop();
+
+        setIsRecording(false);
+    }
+
     return {
         message,
         frequency,
@@ -194,6 +249,9 @@ function useTuner() {
         analyser,
         selectedString,
         setSelectedString,
+        isRecording,
+        startRecording,
+        stopRecording,
     };
 }
 
