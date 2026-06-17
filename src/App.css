@@ -255,3 +255,19 @@ button:hover {
     font-size: 13px;
     color: #9b8878;
 }
+
+.recording-status {
+    font-size: 14px;
+    font-weight: 700;
+    color: #7c4f35;
+}
+
+.sample-label {
+    font-size: 13px;
+    color: #8a7565;
+}
+
+.sample-label span {
+    font-weight: 700;
+    color: #5f3c28;
+}

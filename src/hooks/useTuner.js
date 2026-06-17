@@ -20,14 +20,20 @@ function useTuner() {
     const [isListening, setIsListening] = useState(false);
     const [analyser, setAnalyser] = useState(null);
     const [selectedString, setSelectedString] = useState("AUTO");
+
     const [isRecording, setIsRecording] = useState(false);
-    const mediaRecorderRef = useRef(null);
-    const audioChunksRef = useRef([]);
+    const [recordingCountdown, setRecordingCountdown] = useState(0);
+    const [recordedSamples, setrecordedSamples] = useState([]);
 
     const frequencyHistory = useRef([]);
     const animationFrameRef = useRef(null);
     const streamRef = useRef(null);
     const audioContextRef = useRef(null);
+
+    const mediaRecorderRef = useRef(null);
+    const audioChunksRef = useRef([]);
+    const recordingTimeoutRef = useRef(null);
+    const countdownIntervalRef = useRef(null);
 
     const stableNoteRef = useRef({
         note: null,
@@ -48,17 +54,38 @@ function useTuner() {
         setStatus("No Signal");
     }
 
+    function clearRecordingTimers() {
+        if (recordingTimeoutRef.current) {
+            clearTimeout(recordingTimeoutRef.current);
+            recordingTimeoutRef.current = null;
+        }
+
+        if (countdownIntervalRef.current) {
+            clearInterval(countdownIntervalRef.current);
+            countdownIntervalRef.current = null;
+        }
+    }
+
     function stopListening() {
         if (animationFrameRef.current) {
             cancelAnimationFrame(animationFrameRef.current);
+            animationFrameRef.current = null;
         }
+
+        if (mediaRecorderRef.current && isRecording) {
+            mediaRecorderRef.current.stop();
+        }
+
+        clearRecordingTimers();
 
         if (streamRef.current) {
             streamRef.current.getTracks().forEach((track) => track.stop());
+            streamRef.current = null;
         }
 
         if (audioContextRef.current) {
             audioContextRef.current.close();
+            audioContextRef.current = null;
         }
 
         frequencyHistory.current = [];
@@ -75,6 +102,8 @@ function useTuner() {
         setAnalyser(null);
         setMessage("Not Listening");
         setIsListening(false);
+        setIsRecording(false);
+        setRecordingCountdown(0);
     }
 
     async function startListening() {
@@ -185,55 +214,111 @@ function useTuner() {
     }
 
     function startRecording() {
-        if (!streamRef.current) return;
+        if (!streamRef.current || isRecording) return;
 
         audioChunksRef.current = [];
 
-        const recorder = new MediaRecorder(
-            streamRef.current
-        );
+        const recorder = new MediaRecorder(streamRef.current);
 
         mediaRecorderRef.current = recorder;
 
         recorder.ondataavailable = (event) => {
-            audioChunksRef.current.push(event.data);
+            if (event.data.size > 0) {
+                audioChunksRef.current.push(event.data);
+            }
+        };
+
+        recorder.onstop = () => {
+            const blob = new Blob(audioChunksRef.current, {
+                type: "audio/webm",
+            });
+
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+
+            const label =
+                selectedString === "AUTO" ?
+                "auto" :
+                selectedString.toLowerCase();
+
+            const fileName = `${label}_${Date.now()}.webm`;
+            const sampleMetadata = {
+                fileName,
+                label,
+                selectedString,
+                durationSeconds: 3,
+                createdAt: new Date().toISOString(),
+            };
+
+            setRecordedSamples((previousSamples) => [
+                ...previousSamples,
+                sampleMetadata,
+            ]);
+
+            link.href = url;
+            link.download = fileName;
+            link.click();
+
+            URL.revokeObjectURL(url);
+
+            mediaRecorderRef.current = null;
+            audioChunksRef.current = [];
         };
 
         recorder.start();
 
         setIsRecording(true);
+        setRecordingCountdown(3);
+
+        let countdown = 3;
+
+        countdownIntervalRef.current = setInterval(() => {
+            countdown -= 1;
+            setRecordingCountdown(countdown);
+
+            if (countdown === 0) {
+                clearInterval(countdownIntervalRef.current);
+                countdownIntervalRef.current = null;
+            }
+        }, 1000);
+
+        recordingTimeoutRef.current = setTimeout(() => {
+            stopRecording();
+        }, 3000);
     }
 
     function stopRecording() {
         if (!mediaRecorderRef.current) return;
 
-        mediaRecorderRef.current.onstop = () => {
-            const blob = new Blob(
-                audioChunksRef.current, {
-                    type: "audio/webm",
-                }
-            );
+        clearRecordingTimers();
 
-            const url =
-                URL.createObjectURL(blob);
-
-            const link =
-                document.createElement("a");
-
-            const fileName =
-                `${selectedString.toLowerCase()}_${Date.now()}.webm`;
-
-            link.href = url;
-            link.download = fileName;
-
-            link.click();
-
-            URL.revokeObjectURL(url);
-        };
-
-        mediaRecorderRef.current.stop();
+        if (mediaRecorderRef.current.state !== "inactive") {
+            mediaRecorderRef.current.stop();
+        }
 
         setIsRecording(false);
+        setRecordingCountdown(0);
+    }
+
+    function downloadManifest() {
+        const manifest = {
+            project: "guitar-tuner",
+            sampleCount: recordedSamples.length,
+            samples: recordedSamples,
+        };
+
+        const blob = new Blob([JSON.stringify(manifest, null, 2)], {
+            type: "application/json",
+        });
+
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+
+        link.href = url;
+        link.download = "manifest.json";
+        link.click();
+
+        URL.revokeObjectURL(url);
     }
 
     return {
@@ -252,6 +337,7 @@ function useTuner() {
         isRecording,
         startRecording,
         stopRecording,
+        recordingCountdown,
     };
 }
 
