@@ -321,6 +321,34 @@ function useTuner() {
         URL.revokeObjectURL(url);
     }
 
+    const datasetStats = {
+        total: recordedSamples.length,
+
+        E2: recordedSamples.filter(
+            (sample) => sample.label === "e2"
+        ).length,
+
+        A2: recordedSamples.filter(
+            (sample) => sample.label === "a2"
+        ).length,
+
+        D3: recordedSamples.filter(
+            (sample) => sample.label === "d3"
+        ).length,
+
+        G3: recordedSamples.filter(
+            (sample) => sample.label === "g3"
+        ).length,
+
+        B3: recordedSamples.filter(
+            (sample) => sample.label === "b3"
+        ).length,
+
+        E4: recordedSamples.filter(
+            (sample) => sample.label === "e4"
+        ).length,
+    };
+
     return {
         message,
         frequency,
@@ -338,6 +366,8 @@ function useTuner() {
         startRecording,
         stopRecording,
         recordingCountdown,
+        recordedSamples,
+        downloadManifest,
     };
 }
 

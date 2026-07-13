@@ -26,6 +26,7 @@ function App() {
     recordingCountdown,
     recordedSamples,
     downloadManifest,
+    datasetStats,
   } = useTuner();
 
   const needlePosition = Math.min(Math.max(cents + 50, 0), 100);
@@ -64,6 +65,52 @@ function App() {
   <button onClick={downloadManifest}>
     Download Manifest ({recordedSamples.length})
   </button>
+)}
+
+{datasetStats && (
+  <div className="dataset-dashboard">
+    <h2>Dataset Progress</h2>
+
+    <div className="dataset-total">
+      Total Samples: {datasetStats.total}
+    </div>
+
+    {["E2", "A2", "D3", "G3", "B3", "E4"].map((string) => (
+      <div className="dataset-row" key={string}>
+        <span>{string}</span>
+
+        <div className="dataset-bar">
+          <div
+            className="dataset-fill"
+            style={{
+              width: `${Math.min(datasetStats[string] * 10, 100)}%`,
+            }}
+          ></div>
+        </div>
+
+        <span>{datasetStats[string]}</span>
+      </div>
+    ))}
+  </div>
+)}
+
+{recordedSamples.length > 0 && (
+  <div className="recent-samples">
+    <h2>Recent Samples</h2>
+
+    {recordedSamples
+      .slice()
+      .reverse()
+      .slice(0, 5)
+      .map((sample) => (
+        <div
+          key={sample.fileName}
+          className="sample-item"
+        >
+          ✓ {sample.fileName}
+        </div>
+      ))}
+  </div>
 )}
 
 
