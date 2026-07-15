@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import guitarStrings from "../data/guitarStrings";
 
@@ -23,7 +23,28 @@ function useTuner() {
 
     const [isRecording, setIsRecording] = useState(false);
     const [recordingCountdown, setRecordingCountdown] = useState(0);
-    const [recordedSamples, setrecordedSamples] = useState([]);
+
+    const [recordedSamples, setRecordedSamples] = useState(() => {
+        try {
+            const savedSamples = localStorage.getItem("guitarTunerSamples");
+
+            return savedSamples ? JSON.parse(savedSamples) : [];
+        } catch (error) {
+            console.error("Could not load saved sample metadata:", error);
+            return [];
+        }
+    });
+
+    useEffect(() => {
+        try {
+            localStorage.setItem(
+                "guitarTunerSamples",
+                JSON.stringify(recordedSamples)
+            );
+        } catch (error) {
+            console.error("Could not save sample metadata:", error);
+        }
+    }, [recordedSamples]);
 
     const frequencyHistory = useRef([]);
     const animationFrameRef = useRef(null);
@@ -40,8 +61,14 @@ function useTuner() {
         count: 0,
     });
 
+    function clearRecordedSamples() {
+        setRecordedSamples([]);
+        localStorage.removeItem("guitarTunerSamples");
+    }
+
     function resetTunerState() {
         frequencyHistory.current = [];
+
         stableNoteRef.current = {
             note: null,
             count: 0,
@@ -72,14 +99,20 @@ function useTuner() {
             animationFrameRef.current = null;
         }
 
-        if (mediaRecorderRef.current && isRecording) {
+        if (
+            mediaRecorderRef.current &&
+            mediaRecorderRef.current.state !== "inactive"
+        ) {
             mediaRecorderRef.current.stop();
         }
 
         clearRecordingTimers();
 
         if (streamRef.current) {
-            streamRef.current.getTracks().forEach((track) => track.stop());
+            streamRef.current
+                .getTracks()
+                .forEach((track) => track.stop());
+
             streamRef.current = null;
         }
 
@@ -89,6 +122,7 @@ function useTuner() {
         }
 
         frequencyHistory.current = [];
+
         stableNoteRef.current = {
             note: null,
             count: 0,
@@ -119,8 +153,11 @@ function useTuner() {
             const audioContext = new AudioContext();
             audioContextRef.current = audioContext;
 
-            const source = audioContext.createMediaStreamSource(stream);
-            const audioAnalyser = audioContext.createAnalyser();
+            const source =
+                audioContext.createMediaStreamSource(stream);
+
+            const audioAnalyser =
+                audioContext.createAnalyser();
 
             setAnalyser(audioAnalyser);
 
@@ -128,7 +165,8 @@ function useTuner() {
 
             audioAnalyser.fftSize = 2048;
 
-            const dataArray = new Float32Array(audioAnalyser.fftSize);
+            const dataArray =
+                new Float32Array(audioAnalyser.fftSize);
 
             function detectFrequency() {
                 audioAnalyser.getFloatTimeDomainData(dataArray);
@@ -136,29 +174,34 @@ function useTuner() {
                 let detectedPitch = null;
 
                 if (selectedString === "AUTO") {
-                    detectedPitch = detectGuitarPitchFromKnownStrings(
-                        dataArray,
-                        audioContext.sampleRate,
-                        guitarStrings
-                    );
+                    detectedPitch =
+                        detectGuitarPitchFromKnownStrings(
+                            dataArray,
+                            audioContext.sampleRate,
+                            guitarStrings
+                        );
                 } else {
                     const targetString = guitarStrings.find(
-                        (string) => string.note === selectedString
+                        (string) =>
+                        string.note === selectedString
                     );
 
-                    const detectedFrequency = autoCorrelateForTarget(
-                        dataArray,
-                        audioContext.sampleRate,
-                        targetString.frequency
-                    );
+                    if (targetString) {
+                        const detectedFrequency =
+                            autoCorrelateForTarget(
+                                dataArray,
+                                audioContext.sampleRate,
+                                targetString.frequency
+                            );
 
-                    if (detectedFrequency !== -1) {
-                        detectedPitch = {
-                            note: targetString.note,
-                            targetFrequency: targetString.frequency,
-                            detectedFrequency,
-                            confidence: 100,
-                        };
+                        if (detectedFrequency !== -1) {
+                            detectedPitch = {
+                                note: targetString.note,
+                                targetFrequency: targetString.frequency,
+                                detectedFrequency,
+                                confidence: 100,
+                            };
+                        }
                     }
                 }
 
@@ -175,17 +218,24 @@ function useTuner() {
                         frequency: detectedPitch.targetFrequency,
                     };
 
-                    const centsDifference = getCentsDifference(
-                        smoothedFrequency,
-                        closestString.frequency
-                    );
+                    const centsDifference =
+                        getCentsDifference(
+                            smoothedFrequency,
+                            closestString.frequency
+                        );
 
-                    const tuningStatus = getTuningStatus(centsDifference);
+                    const tuningStatus =
+                        getTuningStatus(centsDifference);
 
-                    if (stableNoteRef.current.note === closestString.note) {
+                    if (
+                        stableNoteRef.current.note ===
+                        closestString.note
+                    ) {
                         stableNoteRef.current.count += 1;
                     } else {
-                        stableNoteRef.current.note = closestString.note;
+                        stableNoteRef.current.note =
+                            closestString.note;
+
                         stableNoteRef.current.count = 1;
                     }
 
@@ -195,12 +245,19 @@ function useTuner() {
 
                     setCents(centsDifference);
                     setStatus(tuningStatus);
-                    setConfidence(Math.round(detectedPitch.confidence));
+                    setConfidence(
+                        Math.round(
+                            detectedPitch.confidence
+                        )
+                    );
                 } else {
                     resetTunerState();
                 }
 
-                animationFrameRef.current = requestAnimationFrame(detectFrequency);
+                animationFrameRef.current =
+                    requestAnimationFrame(
+                        detectFrequency
+                    );
             }
 
             detectFrequency();
@@ -208,40 +265,60 @@ function useTuner() {
             setIsListening(true);
             setMessage("Listening...");
         } catch (error) {
-            console.log(error);
+            console.error(error);
             setMessage("Microphone Access Denied");
         }
     }
 
     function startRecording() {
-        if (!streamRef.current || isRecording) return;
+        if (!streamRef.current) {
+            console.warn(
+                "Start listening before recording."
+            );
+            return;
+        }
+
+        if (isRecording) return;
+
+        if (
+            typeof MediaRecorder === "undefined"
+        ) {
+            console.error(
+                "MediaRecorder is not supported in this browser."
+            );
+            return;
+        }
 
         audioChunksRef.current = [];
 
-        const recorder = new MediaRecorder(streamRef.current);
+        const recorder =
+            new MediaRecorder(streamRef.current);
 
         mediaRecorderRef.current = recorder;
 
         recorder.ondataavailable = (event) => {
             if (event.data.size > 0) {
-                audioChunksRef.current.push(event.data);
+                audioChunksRef.current.push(
+                    event.data
+                );
             }
         };
 
         recorder.onstop = () => {
-            const blob = new Blob(audioChunksRef.current, {
-                type: "audio/webm",
-            });
-
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
+            const blob = new Blob(
+                audioChunksRef.current, {
+                    type: "audio/webm",
+                }
+            );
 
             const label =
                 selectedString === "AUTO" ?
                 "auto" :
                 selectedString.toLowerCase();
 
-            const fileName = `${label}_${Date.now()}.webm`;
+            const fileName =
+                `${label}_${Date.now()}.webm`;
+
             const sampleMetadata = {
                 fileName,
                 label,
@@ -250,19 +327,45 @@ function useTuner() {
                 createdAt: new Date().toISOString(),
             };
 
-            setRecordedSamples((previousSamples) => [
-                ...previousSamples,
-                sampleMetadata,
-            ]);
+            setRecordedSamples(
+                (previousSamples) => [
+                    ...previousSamples,
+                    sampleMetadata,
+                ]
+            );
+
+            const url =
+                URL.createObjectURL(blob);
+
+            const link =
+                document.createElement("a");
 
             link.href = url;
             link.download = fileName;
+
+            document.body.appendChild(link);
             link.click();
+            document.body.removeChild(link);
 
             URL.revokeObjectURL(url);
 
             mediaRecorderRef.current = null;
             audioChunksRef.current = [];
+
+            setIsRecording(false);
+            setRecordingCountdown(0);
+        };
+
+        recorder.onerror = (event) => {
+            console.error(
+                "Recording error:",
+                event.error
+            );
+
+            clearRecordingTimers();
+
+            setIsRecording(false);
+            setRecordingCountdown(0);
         };
 
         recorder.start();
@@ -272,27 +375,41 @@ function useTuner() {
 
         let countdown = 3;
 
-        countdownIntervalRef.current = setInterval(() => {
-            countdown -= 1;
-            setRecordingCountdown(countdown);
+        countdownIntervalRef.current =
+            setInterval(() => {
+                countdown -= 1;
 
-            if (countdown === 0) {
-                clearInterval(countdownIntervalRef.current);
-                countdownIntervalRef.current = null;
-            }
-        }, 1000);
+                setRecordingCountdown(countdown);
 
-        recordingTimeoutRef.current = setTimeout(() => {
-            stopRecording();
-        }, 3000);
+                if (countdown <= 0) {
+                    clearInterval(
+                        countdownIntervalRef.current
+                    );
+
+                    countdownIntervalRef.current =
+                        null;
+                }
+            }, 1000);
+
+        recordingTimeoutRef.current =
+            setTimeout(() => {
+                stopRecording();
+            }, 3000);
     }
 
     function stopRecording() {
-        if (!mediaRecorderRef.current) return;
-
         clearRecordingTimers();
 
-        if (mediaRecorderRef.current.state !== "inactive") {
+        if (!mediaRecorderRef.current) {
+            setIsRecording(false);
+            setRecordingCountdown(0);
+            return;
+        }
+
+        if (
+            mediaRecorderRef.current.state !==
+            "inactive"
+        ) {
             mediaRecorderRef.current.stop();
         }
 
@@ -307,16 +424,24 @@ function useTuner() {
             samples: recordedSamples,
         };
 
-        const blob = new Blob([JSON.stringify(manifest, null, 2)], {
-            type: "application/json",
-        });
+        const blob = new Blob(
+            [JSON.stringify(manifest, null, 2)], {
+                type: "application/json",
+            }
+        );
 
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
+        const url =
+            URL.createObjectURL(blob);
+
+        const link =
+            document.createElement("a");
 
         link.href = url;
         link.download = "manifest.json";
+
+        document.body.appendChild(link);
         link.click();
+        document.body.removeChild(link);
 
         URL.revokeObjectURL(url);
     }
@@ -356,18 +481,25 @@ function useTuner() {
         status,
         cents,
         confidence,
+
         isListening,
         startListening,
         stopListening,
+
         analyser,
+
         selectedString,
         setSelectedString,
+
         isRecording,
         startRecording,
         stopRecording,
         recordingCountdown,
+
         recordedSamples,
         downloadManifest,
+        datasetStats,
+        clearRecordedSamples,
     };
 }
 

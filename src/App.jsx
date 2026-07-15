@@ -27,6 +27,7 @@ function App() {
     recordedSamples,
     downloadManifest,
     datasetStats,
+    clearRecordedSamples,
   } = useTuner();
 
   const needlePosition = Math.min(Math.max(cents + 50, 0), 100);
@@ -66,6 +67,14 @@ function App() {
     Download Manifest ({recordedSamples.length})
   </button>
 )}
+  <button
+  type="button"
+  onClick={clearRecordedSamples}
+  disabled={recordedSamples.length === 0}
+>
+  Clear Dataset History
+</button>
+
 
 {datasetStats && (
   <div className="dataset-dashboard">
