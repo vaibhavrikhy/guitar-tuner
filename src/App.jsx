@@ -6,6 +6,17 @@ import Spectrum from "./components/Spectrum";
 
 import useTuner from "./hooks/useTuner";
 
+const guitarFrequencies = {
+  E2: "82.41 Hz",
+  A2: "110.00 Hz",
+  D3: "146.83 Hz",
+  G3: "196.00 Hz",
+  B3: "246.94 Hz",
+  E4: "329.63 Hz",
+};
+
+const guitarStrings = ["E2", "A2", "D3", "G3", "B3", "E4"];
+
 function App() {
   const {
     message,
@@ -32,147 +43,266 @@ function App() {
 
   const needlePosition = Math.min(Math.max(cents + 50, 0), 100);
 
+  function handleClearDataset() {
+    const shouldClear = window.confirm(
+      "Are you sure you want to clear the saved dataset history?"
+    );
+
+    if (shouldClear) {
+      clearRecordedSamples();
+    }
+  }
+
   return (
-    <div className="container">
-      <h1>Guitar Tuner</h1>
+    <main className="app-shell">
+      <header className="app-header">
+        <div>
+          <p className="eyebrow">Real-time pitch detection</p>
+          <h1>Guitar Tuner</h1>
+          <p className="app-subtitle">
+            Tune your guitar using live microphone input and digital signal
+            processing.
+          </p>
+        </div>
 
-      <button onClick={isListening ? stopListening : startListening}>
-        {isListening ? "Stop Listening" : "Start Listening"}
-      </button>
+        <div className={`listening-indicator ${isListening ? "active" : ""}`}>
+          <span className="status-dot"></span>
+          {isListening ? "Microphone active" : "Microphone inactive"}
+        </div>
+      </header>
 
-      {isListening && (
-        <>
-          <button onClick={isRecording ? stopRecording : startRecording}>
-            {isRecording ? "Stop Recording" : "Record Sample"}
-          </button>
+      <section className="tuner-layout">
+        <div className="main-tuner-card">
+          <div className="primary-control">
+            <button
+              className={`primary-button ${isListening ? "stop-button" : ""}`}
+              onClick={isListening ? stopListening : startListening}
+            >
+              {isListening ? "Stop Listening" : "Start Listening"}
+            </button>
 
-          {isRecording && (
-            <div className="recording-status">
-              Recording... {recordingCountdown}
-            </div>
-          )}
-
-          <div className="sample-label">
-            Sample Label:{" "}
-            <span>
-              {selectedString === "AUTO"
-                ? "auto"
-                : selectedString.toLowerCase()}
-            </span>
+            <p className="privacy-note">
+              Microphone audio is processed locally in your browser.
+            </p>
           </div>
-        </>
-      )}
-      {recordedSamples?.length > 0 && (
-  <button onClick={downloadManifest}>
-    Download Manifest ({recordedSamples.length})
-  </button>
-)}
-  <button
-  type="button"
-  onClick={clearRecordedSamples}
-  disabled={recordedSamples.length === 0}
->
-  Clear Dataset History
-</button>
 
+          <div className="string-controls">
+            <div className="section-heading">
+              <div>
+                <p className="section-label">Tuning mode</p>
+                <h2>Select a string</h2>
+              </div>
 
-{datasetStats && (
-  <div className="dataset-dashboard">
-    <h2>Dataset Progress</h2>
+              <div className="current-string">
+                {selectedString === "AUTO" ? "Auto Detect" : selectedString}
+              </div>
+            </div>
 
-    <div className="dataset-total">
-      Total Samples: {datasetStats.total}
-    </div>
+            <div className="string-selector">
+              <button
+                className={selectedString === "AUTO" ? "selected" : ""}
+                onClick={() => setSelectedString("AUTO")}
+              >
+                AUTO
+              </button>
 
-    {["E2", "A2", "D3", "G3", "B3", "E4"].map((string) => (
-      <div className="dataset-row" key={string}>
-        <span>{string}</span>
+              {guitarStrings.map((string) => (
+                <button
+                  key={string}
+                  className={selectedString === string ? "selected" : ""}
+                  onClick={() => setSelectedString(string)}
+                >
+                  {string}
+                </button>
+              ))}
+            </div>
 
-        <div className="dataset-bar">
-          <div
-            className="dataset-fill"
-            style={{
-              width: `${Math.min(datasetStats[string] * 10, 100)}%`,
-            }}
-          ></div>
+            <div className="target-information">
+              <span>Target frequency</span>
+
+              <strong>
+                {selectedString === "AUTO"
+                  ? "Automatic detection"
+                  : guitarFrequencies[selectedString]}
+              </strong>
+            </div>
+          </div>
+
+          <TunerCard
+            message={message}
+            note={note}
+            frequency={frequency}
+            status={status}
+            needlePosition={needlePosition}
+            confidence={confidence}
+          />
         </div>
 
-        <span>{datasetStats[string]}</span>
-      </div>
-    ))}
-  </div>
-)}
+        <aside className="signal-panel">
+          <div className="signal-card">
+            <div className="visualizer-heading">
+              <div>
+                <p className="section-label">Live signal</p>
+                <h2>Waveform</h2>
+              </div>
+            </div>
 
-{recordedSamples.length > 0 && (
-  <div className="recent-samples">
-    <h2>Recent Samples</h2>
+            <Waveform analyser={analyser} />
+          </div>
 
-    {recordedSamples
-      .slice()
-      .reverse()
-      .slice(0, 5)
-      .map((sample) => (
-        <div
-          key={sample.fileName}
-          className="sample-item"
-        >
-          ✓ {sample.fileName}
-        </div>
-      ))}
-  </div>
-)}
+          <div className="signal-card">
+            <div className="visualizer-heading">
+              <div>
+                <p className="section-label">Frequency analysis</p>
+                <h2>Spectrum</h2>
+              </div>
+            </div>
 
+            <Spectrum analyser={analyser} />
+          </div>
+        </aside>
+      </section>
 
-      <div className="string-selector">
-        <button onClick={() => setSelectedString("AUTO")}>AUTO</button>
+      <section className="dataset-lab">
+        <details>
+          <summary>
+            <div>
+              <p className="section-label">Development tools</p>
+              <h2>Dataset Lab</h2>
+            </div>
 
-        {["E2", "A2", "D3", "G3", "B3", "E4"].map((string) => (
-          <button key={string} onClick={() => setSelectedString(string)}>
-            {string}
-          </button>
-        ))}
-      </div>
+            <span>Open tools</span>
+          </summary>
 
-      <div className="current-selection">
-        Currently Tuning:{" "}
-        <span>{selectedString === "AUTO" ? "Auto Detect" : selectedString}</span>
-      </div>
+          <div className="dataset-content">
+            <div className="recording-panel">
+              <div>
+                <h3>Record a training sample</h3>
+                <p>
+                  Select a string before recording so each sample receives the
+                  correct label.
+                </p>
+              </div>
 
-      <div className="target-frequency">
-        Target:
-        {selectedString === "AUTO"
-          ? " Auto Detect"
-          : ` ${
-              {
-                E2: "82.41 Hz",
-                A2: "110.00 Hz",
-                D3: "146.83 Hz",
-                G3: "196.00 Hz",
-                B3: "246.94 Hz",
-                E4: "329.63 Hz",
-              }[selectedString]
-            }`}
-      </div>
+              <div className="recording-actions">
+                <button
+                  className="secondary-button"
+                  onClick={isRecording ? stopRecording : startRecording}
+                  disabled={!isListening}
+                >
+                  {isRecording ? "Stop Recording" : "Record Sample"}
+                </button>
 
-      <TunerCard
-        message={message}
-        note={note}
-        frequency={frequency}
-        status={status}
-        needlePosition={needlePosition}
-        confidence={confidence}
-      />
+                {isRecording && (
+                  <div className="recording-status">
+                    <span className="recording-dot"></span>
+                    Recording... {recordingCountdown}
+                  </div>
+                )}
+              </div>
 
-      <div className="visualizer-section">
-        <div className="visualizer-title">Waveform</div>
-        <Waveform analyser={analyser} />
-      </div>
+              <div className="sample-label">
+                Sample label:
+                <strong>
+                  {selectedString === "AUTO"
+                    ? " auto"
+                    : ` ${selectedString.toLowerCase()}`}
+                </strong>
+              </div>
+            </div>
 
-      <div className="visualizer-section">
-        <div className="visualizer-title">Spectrum Analyzer</div>
-        <Spectrum analyser={analyser} />
-      </div>
-    </div>
+            {datasetStats && (
+              <div className="dataset-dashboard">
+                <div className="dataset-header">
+                  <div>
+                    <p className="section-label">Collection progress</p>
+                    <h3>Dataset Progress</h3>
+                  </div>
+
+                  <div className="dataset-total">
+                    {datasetStats.total} total
+                  </div>
+                </div>
+
+                <div className="dataset-list">
+                  {guitarStrings.map((string) => (
+                    <div className="dataset-row" key={string}>
+                      <span className="dataset-string">{string}</span>
+
+                      <div className="dataset-bar">
+                        <div
+                          className="dataset-fill"
+                          style={{
+                            width: `${Math.min(
+                              datasetStats[string] * 10,
+                              100
+                            )}%`,
+                          }}
+                        ></div>
+                      </div>
+
+                      <span className="dataset-count">
+                        {datasetStats[string]}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {recordedSamples.length > 0 && (
+              <div className="recent-samples">
+                <div className="recent-samples-header">
+                  <div>
+                    <p className="section-label">Latest recordings</p>
+                    <h3>Recent Samples</h3>
+                  </div>
+                </div>
+
+                <div className="sample-list">
+                  {recordedSamples
+                    .slice()
+                    .reverse()
+                    .slice(0, 5)
+                    .map((sample) => (
+                      <div key={sample.fileName} className="sample-item">
+                        <span className="sample-check">✓</span>
+
+                        <div>
+                          <strong>{sample.fileName}</strong>
+                          <span>{sample.createdAt}</span>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+
+            <div className="dataset-actions">
+              <button
+                className="secondary-button"
+                onClick={downloadManifest}
+                disabled={recordedSamples.length === 0}
+              >
+                Download Manifest
+                {recordedSamples.length > 0
+                  ? ` (${recordedSamples.length})`
+                  : ""}
+              </button>
+
+              <button
+                className="danger-button"
+                type="button"
+                onClick={handleClearDataset}
+                disabled={recordedSamples.length === 0}
+              >
+                Clear Dataset History
+              </button>
+            </div>
+          </div>
+        </details>
+      </section>
+    </main>
   );
 }
 
